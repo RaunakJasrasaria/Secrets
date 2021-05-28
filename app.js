@@ -20,7 +20,7 @@ app.use(express.static("public"));
 app.use(session({
   secret:"viratkohliisthebest",
   resave:false,
-  saveuninitialized:false
+  saveUninitialized:false
 }));
 
 app.use(passport.initialize());       //setting up passport
@@ -35,7 +35,8 @@ mongoose.set("useCreateIndex",true);
 const userSchema = new mongoose.Schema({
   email:String,
   password:String,
-  googleId:String
+  googleId:String,
+  secret:String
 });
 
 userSchema.plugin(passportLocalMongoose, {usernameUnique: false});       //plugging in PLM to the Schema
@@ -97,10 +98,26 @@ app.get("/login",function(req,res){
 //get route for secrets page
 app.get("/secrets",function(req,res){
 if(req.isAuthenticated()){
-  res.render("secrets");
+  User.find({secret:{$ne:null}},function(err,foundUsers){
+    if(err){
+      console.log(err);
+    }else{
+      if(foundUsers){
+      res.render("secrets",{usersWithSecrets:foundUsers});
+    }}
+  });
+
 }else{
   res.redirect("/login");
 }
+});
+
+app.get("/submit",function(req,res){
+  if(req.isAuthenticated()){
+    res.render("submit");
+  }else{
+    res.redirect("/login");
+  }
 });
 
 //get route for logout
@@ -142,6 +159,27 @@ app.post("/login",function(req,res){
     }
   });
 
+});
+
+
+app.post("/submit",function(req,res){
+  const submittedSecret = req.body.secret;
+  User.findById(req.user.id, function(err,foundUser){
+    if(err){
+      console.log(err);
+    }else{
+      if(foundUser){
+        foundUser.secret = submittedSecret;
+        foundUser.save(function(err){
+        if(err){
+          console.log(err);
+        }else{
+          res.redirect("/secrets");
+        }
+      });
+    }
+    }
+  });
 });
 
 //listening to the port 3000
